@@ -16,6 +16,7 @@ func main() {
 	}
 
 	root := os.Args[1]
+	count := 0
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -23,7 +24,11 @@ func main() {
 			return nil
 		}
 
-		// Проверяем, что файл .json и в пути есть "read-view"
+		// Пропускаем каталог target
+		if d.IsDir() && d.Name() == "target" {
+			return filepath.SkipDir
+		}
+
 		if !d.IsDir() && strings.Contains(path, "read-view") && strings.HasSuffix(path, ".json") {
 			data, err := os.ReadFile(path)
 			if err != nil {
@@ -39,6 +44,7 @@ func main() {
 
 			if indexName, ok := jsonData["indexName"].(string); ok {
 				fmt.Printf("%s\n", indexName)
+				count++
 			} else {
 				fmt.Fprintf(os.Stderr, "%s: 'indexName' not found or not a string\n", path)
 			}
@@ -51,4 +57,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Walk error: %v\n", err)
 		os.Exit(1)
 	}
+
+	fmt.Printf("\nTotal indexName entries found: %d\n", count)
 }
