@@ -6,7 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"text/tabwriter"
 )
 
 func main() {
@@ -18,13 +20,19 @@ func main() {
 	root := os.Args[1]
 	count := 0
 
+	// Регулярка для выделения версии
+	versionRegex := regexp.MustCompile(`(v[\d]+(?:[\.\-\w]*)?)$`)
+
+	// Настройка табличного вывода
+	writer := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(writer, "Index Name\tVersion")
+
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error accessing %s: %v\n", path, err)
 			return nil
 		}
 
-		// Пропускаем каталог target
 		if d.IsDir() && d.Name() == "target" {
 			return filepath.SkipDir
 		}
@@ -43,15 +51,21 @@ func main() {
 			}
 
 			if indexName, ok := jsonData["indexName"].(string); ok {
-				fmt.Printf("%s\n", indexName)
+				version := "-"
+				match := versionRegex.FindStringSubmatch(indexName)
+				if len(match) > 1 {
+					version = match[1]
+				}
+				fmt.Fprintf(writer, "%s\t%s\n", indexName, version)
 				count++
 			} else {
 				fmt.Fprintf(os.Stderr, "%s: 'indexName' not found or not a string\n", path)
 			}
 		}
-
 		return nil
 	})
+
+	writer.Flush()
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Walk error: %v\n", err)
